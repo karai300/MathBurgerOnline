@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="dark">
+  <title>Math Burger Online</title>
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { background-color: #ffffff; }
+    html { height: 100%; }
+    body {
+      color: #333; font-family: monospace;
+      display: flex; flex-direction: column; height: 100vh; overflow: hidden;
+    }
+    header {
+      padding: 10px 18px; background: #fff; border-bottom: 1px solid #e0e0e0;
+      display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; flex-shrink: 0;
+    }
+    .title { font-size: 1.1rem; color: #d08020; letter-spacing: 0.04em; }
+    .formula { font-size: 0.78rem; color: #777; }
+    .formula span { color: #2277bb; }
+
+    #main { flex: 1; display: flex; overflow: hidden; }
+    #left { flex: 1; display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+
+    #controls {
+      padding: 7px 18px; background: #fff; border-bottom: 1px solid #e0e0e0;
+      display: flex; align-items: center; gap: 6px; flex-wrap: wrap; flex-shrink: 0;
+    }
+    .ctrl-label { font-size: 0.68rem; color: #999; margin-right: 4px; text-transform: uppercase; letter-spacing: 0.07em; }
+    .layer-btn {
+      padding: 3px 11px; border: 1px solid currentColor; border-radius: 999px;
+      background: transparent; cursor: pointer; font-family: monospace;
+      font-size: 0.72rem; letter-spacing: 0.03em; transition: opacity 0.15s;
+    }
+    .layer-btn.off { opacity: 0.25; }
+    .explode-group { display: flex; align-items: center; gap: 6px; margin-left: 6px; }
+    input[type=range].explode-slider { width: 110px; accent-color: #d08020; cursor: pointer; }
+    .explode-val { font-size: 0.72rem; color: #d08020; min-width: 30px; }
+
+    #eqbar {
+      padding: 5px 18px; background: #fff; border-bottom: 1px solid #e0e0e0;
+      font-size: 0.7rem; color: #999; min-height: 22px; flex-shrink: 0;
+    }
+    #eqbar span { color: #2277bb; }
+    #plot { flex: 1; min-height: 0; background: linear-gradient(to bottom, #5ba3d9 0%, #a8d4f0 35%, #d8eef8 65%, #eef7fc 100%); }
+
+    /* ── Accordion ── */
+    #accordion {
+      width: 268px; flex-shrink: 0; overflow-y: auto;
+      background: #fff; border-left: 1px solid #e0e0e0;
+    }
+    #accordion::-webkit-scrollbar { width: 5px; }
+    #accordion::-webkit-scrollbar-track { background: #fff; }
+    #accordion::-webkit-scrollbar-thumb { background: #ddd; border-radius: 3px; }
+
+    .acc-item { border-bottom: 1px solid #ebebeb; }
+    .acc-header {
+      padding: 8px 10px; cursor: pointer; user-select: none;
+      display: flex; align-items: center; justify-content: space-between;
+      transition: background 0.12s;
+    }
+    .acc-header:hover { background: #f5f5f5; }
+    .acc-header-left { display: flex; align-items: center; gap: 8px; }
+    .acc-color {
+      width: 22px; height: 22px; padding: 0; border: none; border-radius: 4px;
+      cursor: pointer; flex-shrink: 0; background: none;
+    }
+    .acc-color::-webkit-color-swatch-wrapper { padding: 0; }
+    .acc-color::-webkit-color-swatch { border: none; border-radius: 3px; }
+    .acc-name { font-size: 0.75rem; letter-spacing: 0.03em; }
+    .acc-chevron { font-size: 0.6rem; color: #bbb; transition: transform 0.18s; display: inline-block; }
+    .acc-chevron.open { transform: rotate(90deg); }
+    .acc-body { display: none; padding: 8px 10px 10px; background: #fafafa; }
+    .acc-body.open { display: block; }
+
+    .param-row { margin-bottom: 10px; }
+    .param-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 2px; }
+    .param-key  { font-size: 0.67rem; color: #555; }
+    .param-desc { font-size: 0.58rem; color: #aaa; margin-left: 4px; }
+    .param-val  { font-size: 0.64rem; color: #2277bb; min-width: 72px; text-align: right; }
+    input[type=range].param-slider { width: 100%; cursor: pointer; height: 3px; }
+    .param-minmax { display: flex; justify-content: space-between; font-size: 0.55rem; color: #ccc; margin-top: 2px; }
+    .param-minmax .orig { color: #aaa; }
+
+    .acc-reset {
+      margin-top: 4px; font-size: 0.6rem; color: #aaa; background: transparent;
+      border: 1px solid #ddd; border-radius: 3px; padding: 2px 8px;
+      cursor: pointer; font-family: monospace; transition: color 0.1s, border-color 0.1s;
+    }
+    .acc-reset:hover { color: #555; border-color: #aaa; }
+  </style>
+</head>
+<body>
+
+<header>
+  <span class="title">Math Burger Online</span>
+  <span class="formula">
+    B(a,b,w,v,r₀) &nbsp;→&nbsp;
+    r = <span>r₀ sin θ</span> &nbsp;|&nbsp;
+    z = <span>v + w · erf[a(cos θ − b)]</span> &nbsp;|&nbsp;
+    (x,y) = <span>r (cos φ, sin φ)</span>
+  </span>
+</header>
+
+<div id="main">
+  <div id="left">
+    <div id="controls"><span class="ctrl-label">Layers:</span></div>
+    <div id="eqbar">hover a layer button to see its equation</div>
+    <div id="plot"></div>
+  </div>
+  <div id="accordion"></div>
+</div>
+
+<script>
+// ── erf ──────────────────────────────────────────────────────────────────────
+function erf(x) {
+  const s = x < 0 ? -1 : 1, ax = Math.abs(x);
+  const t = 1 / (1 + 0.3275911 * ax);
+  const p = t * (0.254829592 + t * (-0.284496736 + t * (1.421413741 + t * (-1.453152027 + t * 1.061405429))));
+  return s * (1 - p * Math.exp(-ax * ax));
+}
+
+// ── Layer definitions ─────────────────────────────────────────────────────────
+// sliderOpts shapes:
+//   { min, max, step }               → integer slider (n, m)
+//   { min, max, step, isPow2: true } → slider is exponent, param = 2^slider (l)
+//   absent                           → standard ±50% continuous slider
+
+const LAYERS = [
+  {
+    name: 'Bottom Bun', color: '#c07828',
+    eq: 'B(a=4, b=−0.25, w=0.15, v=−0.03, r₀=0.95)',
+    Nt: 72, Np: 72,
+    params: { a: 4, b: -0.25, w: 0.15, v: -0.03, r0: 0.95 },
+    paramInfo: [
+      { key: 'a',  label: 'a',  desc: 'erf sharpness' },
+      { key: 'b',  label: 'b',  desc: 'inflection point' },
+      { key: 'w',  label: 'w',  desc: 'half-height' },
+      { key: 'v',  label: 'v',  desc: 'vertical center' },
+      { key: 'r0', label: 'r₀', desc: 'radius' },
+    ],
+    rFn: (t, p, q) => q.r0 * Math.sin(t),
+    zFn: (t, p, q) => q.v + q.w * erf(q.a * (Math.cos(t) - q.b))
+  },
+  {
+    name: 'Lettuce', color: '#44aa30',
+    eq: 'r = (r₀ + wobble·sin(mφ))sinθ,  z = v + ripple·cos(lφ)·sin¹⁶θ + w·erf(a cosθ)',
+    Nt: 80, Np: 512,   // fixed high Np — covers l up to 64 (512/64 = 8 samples/cycle)
+    params: { a: 3, b: 0, w: 0.01, v: 0.14, r0: 1, ripple: 0.05, wobble: 0.1, m: 6, l: 32 },
+    paramInfo: [
+      { key: 'a',      label: 'a',      desc: 'erf sharpness' },
+      { key: 'w',      label: 'w',      desc: 'half-height' },
+      { key: 'v',      label: 'v',      desc: 'vertical center' },
+      { key: 'r0',     label: 'r₀',     desc: 'base radius' },
+      { key: 'ripple', label: 'ripple', desc: 'frilly amplitude' },
+      { key: 'wobble', label: 'wobble', desc: 'edge wobble' },
+      { key: 'm', label: 'm', desc: 'edge lobes',  sliderOpts: { min: 3, max: 8, step: 1 } },
+      { key: 'l', label: 'l', desc: 'frilly freq', sliderOpts: { min: 2, max: 6, step: 1, isPow2: true } },
+    ],
+    rFn: (t, p, q) => (q.r0 + q.wobble * Math.sin(q.m * p)) * Math.sin(t),
+    zFn: (t, p, q) => (q.v + q.ripple * Math.cos(q.l * p) * Math.pow(Math.sin(t), 16))
+                     + q.w * erf(q.a * (Math.cos(t) - q.b))
+  },
+  {
+    name: 'Patty', color: '#5c2c10',
+    eq: 'B(a=2.5, b=0, w=0.15, v=0.3, r₀=1)',
+    Nt: 72, Np: 72,
+    params: { a: 2.5, b: 0, w: 0.15, v: 0.3, r0: 1 },
+    paramInfo: [
+      { key: 'a',  label: 'a',  desc: 'erf sharpness' },
+      { key: 'b',  label: 'b',  desc: 'inflection point' },
+      { key: 'w',  label: 'w',  desc: 'half-height' },
+      { key: 'v',  label: 'v',  desc: 'vertical center' },
+      { key: 'r0', label: 'r₀', desc: 'radius' },
+    ],
+    rFn: (t, p, q) => q.r0 * Math.sin(t),
+    zFn: (t, p, q) => q.v + q.w * erf(q.a * (Math.cos(t) - q.b))
+  },
+  {
+    name: 'Cheese', color: '#f0c020',
+    eq: 'r = (r₀ + sinMod·sin(nφ) − cosMod·cos(2nφ))²·sinθ,  droop at sin(nφ) corners',
+    Nt: 72, Np: 200,   // fixed — covers n up to 8 (200/16 = 12.5 samples/cycle for cos2nφ)
+    params: { a: 3, b: 0, w: 0.05, v: 0.46, r0: 0.98, droop: 0.004, sinMod: 0.05, cosMod: 0.01, n: 4 },
+    paramInfo: [
+      { key: 'a',      label: 'a',      desc: 'erf sharpness' },
+      { key: 'w',      label: 'w',      desc: 'half-height' },
+      { key: 'v',      label: 'v',      desc: 'vertical center' },
+      { key: 'r0',     label: 'r₀',     desc: 'base radius' },
+      { key: 'droop',  label: 'droop',  desc: 'corner droop' },
+      { key: 'sinMod', label: 'sinMod', desc: 'squareness' },
+      { key: 'n', label: 'n', desc: 'corner count', sliderOpts: { min: 3, max: 8, step: 1 } },
+    ],
+    rFn: (t, p, q) => Math.pow(q.r0 + q.sinMod * Math.sin(q.n*p) - q.cosMod * Math.cos(2*q.n*p), 2) * Math.sin(t),
+    zFn: (t, p, q) => (q.v - q.droop * Math.pow(1 + Math.sin(q.n*p), 6) * Math.pow(Math.sin(t), 16))
+                     + q.w * erf(q.a * (Math.cos(t) - q.b))
+  },
+  {
+    name: 'Tomato', color: '#cc2e2e',
+    eq: 'B(a=20, b=0, w=0.1, v=0.55, r₀=0.9)',
+    Nt: 72, Np: 72,
+    params: { a: 20, b: 0, w: 0.1, v: 0.55, r0: 0.9 },
+    paramInfo: [
+      { key: 'a',  label: 'a',  desc: 'erf sharpness' },
+      { key: 'b',  label: 'b',  desc: 'inflection point' },
+      { key: 'w',  label: 'w',  desc: 'half-height' },
+      { key: 'v',  label: 'v',  desc: 'vertical center' },
+      { key: 'r0', label: 'r₀', desc: 'radius' },
+    ],
+    rFn: (t, p, q) => q.r0 * Math.sin(t),
+    zFn: (t, p, q) => q.v + q.w * erf(q.a * (Math.cos(t) - q.b))
+  },
+  {
+    name: 'Onion', color: '#e0dac8',
+    eq: 'B(a=20, b=0, w=0.05, v=0.7, r₀=0.85)',
+    Nt: 72, Np: 72,
+    params: { a: 20, b: 0, w: 0.05, v: 0.7, r0: 0.85 },
+    paramInfo: [
+      { key: 'a',  label: 'a',  desc: 'erf sharpness' },
+      { key: 'b',  label: 'b',  desc: 'inflection point' },
+      { key: 'w',  label: 'w',  desc: 'half-height' },
+      { key: 'v',  label: 'v',  desc: 'vertical center' },
+      { key: 'r0', label: 'r₀', desc: 'radius' },
+    ],
+    rFn: (t, p, q) => q.r0 * Math.sin(t),
+    zFn: (t, p, q) => q.v + q.w * erf(q.a * (Math.cos(t) - q.b))
+  },
+  {
+    name: 'Top Bun', color: '#d8902a',
+    eq: 'B(a=1.2, b=0.5, w=0.5, v=1.2, r₀=1)',
+    Nt: 72, Np: 72,
+    params: { a: 1.2, b: 0.5, w: 0.5, v: 1.2, r0: 1 },
+    paramInfo: [
+      { key: 'a',  label: 'a',  desc: 'erf sharpness' },
+      { key: 'b',  label: 'b',  desc: 'inflection point' },
+      { key: 'w',  label: 'w',  desc: 'half-height' },
+      { key: 'v',  label: 'v',  desc: 'vertical center' },
+      { key: 'r0', label: 'r₀', desc: 'radius' },
+    ],
+    rFn: (t, p, q) => q.r0 * Math.sin(t),
+    zFn: (t, p, q) => q.v + q.w * erf(q.a * (Math.cos(t) - q.b))
+  }
+];
+
+LAYERS.forEach(l => { l.origParams = { ...l.params }; });
+
+const N = LAYERS.length;   // 7 — surface traces are [0..N-1], grid traces are [N..2N-1]
+
+// ── Surface builder ───────────────────────────────────────────────────────────
+function buildSurface(layer) {
+  const { Nt, Np, rFn, zFn, params } = layer;
+  const thetas = Array.from({ length: Nt }, (_, k) => Math.PI * k / (Nt - 1));
+  const phis   = Array.from({ length: Np }, (_, k) => 2 * Math.PI * k / (Np - 1));
+  const X = [], Y = [], Z = [];
+  for (let i = 0; i < Np; i++) {
+    const phi = phis[i];
+    const xr = [], yr = [], zr = [];
+    for (let j = 0; j < Nt; j++) {
+      const th = thetas[j];
+      const r  = rFn(th, phi, params);
+      const z  = zFn(th, phi, params);
+      xr.push(r * Math.cos(phi)); yr.push(r * Math.sin(phi)); zr.push(z);
+    }
+    X.push(xr); Y.push(yr); Z.push(zr);
+  }
+  return { X, Y, Z };
+}
+
+// ── Grid-line builder: 16 meridians (const φ) + 8 latitude rings (const θ) ──
+function buildGrid(layer, dz) {
+  const { Nt, Np, rFn, zFn, params } = layer;
+  const thetas = Array.from({ length: Nt }, (_, k) => Math.PI * k / (Nt - 1));
+  const phis   = Array.from({ length: Np }, (_, k) => 2 * Math.PI * k / (Np - 1));
+  const NM = 16, NL = 8;
+  const gx = [], gy = [], gz = [];
+
+  // Meridians
+  for (let m = 0; m < NM; m++) {
+    const phi = 2 * Math.PI * m / NM;
+    for (const th of thetas) {
+      const r = rFn(th, phi, params), z = zFn(th, phi, params);
+      gx.push(r * Math.cos(phi)); gy.push(r * Math.sin(phi)); gz.push(z + dz);
+    }
+    gx.push(null); gy.push(null); gz.push(null);
+  }
+
+  // Latitude rings
+  for (let l = 1; l <= NL; l++) {
+    const th = Math.PI * l / (NL + 1);
+    for (const phi of phis) {
+      const r = rFn(th, phi, params), z = zFn(th, phi, params);
+      gx.push(r * Math.cos(phi)); gy.push(r * Math.sin(phi)); gz.push(z + dz);
+    }
+    gx.push(null); gy.push(null); gz.push(null);
+  }
+
+  return { gx, gy, gz };
+}
+
+function gridColor() { return '#000000'; }
+
+function zMean(Z) {
+  let s = 0, n = 0;
+  Z.forEach(row => row.forEach(v => { s += v; n++; }));
+  return s / n;
+}
+
+// ── Pre-compute all surfaces & grids ─────────────────────────────────────────
+const surfaces = LAYERS.map(l => buildSurface(l));
+const baseZ    = surfaces.map(s => s.Z);
+const zCenters = baseZ.map(zMean);
+let zGlobal    = zCenters.reduce((a, b) => a + b, 0) / N;
+let curExplode = 0;
+
+const grids = LAYERS.map(l => buildGrid(l, 0));
+
+// ── Explode: update z for all surfaces + rebuild all grids ────────────────────
+function applyExplode(e) {
+  curExplode = e;
+  const dzArr = LAYERS.map((_, i) => e * (zCenters[i] - zGlobal));
+
+  Plotly.restyle('plot',
+    { z: dzArr.map((dz, i) => baseZ[i].map(row => row.map(v => v + dz))) },
+    LAYERS.map((_, i) => i)
+  );
+
+  const newGrids = LAYERS.map((layer, i) => buildGrid(layer, dzArr[i]));
+  Plotly.restyle('plot', {
+    x: newGrids.map(g => g.gx),
+    y: newGrids.map(g => g.gy),
+    z: newGrids.map(g => g.gz)
+  }, LAYERS.map((_, i) => N + i));
+}
+
+// ── Rebuild one layer (param slider changed) ──────────────────────────────────
+// Single combined restyle call per trace to avoid mid-frame dimension mismatch.
+function rebuildLayer(li) {
+  surfaces[li] = buildSurface(LAYERS[li]);
+  baseZ[li]    = surfaces[li].Z;
+  zCenters[li] = zMean(baseZ[li]);
+  zGlobal      = zCenters.reduce((a, b) => a + b, 0) / N;
+
+  const dzArr = LAYERS.map((_, i) => curExplode * (zCenters[i] - zGlobal));
+
+  // Surface traces: changed layer needs x+y+z; others need z only
+  Plotly.restyle('plot',
+    { x: [surfaces[li].X], y: [surfaces[li].Y],
+      z: [baseZ[li].map(row => row.map(v => v + dzArr[li]))] },
+    [li]
+  );
+  const otherIdx = LAYERS.map((_, i) => i).filter(i => i !== li);
+  if (otherIdx.length)
+    Plotly.restyle('plot',
+      { z: otherIdx.map(i => baseZ[i].map(row => row.map(v => v + dzArr[i]))) },
+      otherIdx
+    );
+
+  // Grid traces: always rebuild x+y+z for the changed layer
+  const newGrid = buildGrid(LAYERS[li], dzArr[li]);
+  grids[li] = newGrid;
+  Plotly.restyle('plot',
+    { x: [newGrid.gx], y: [newGrid.gy], z: [newGrid.gz] },
+    [N + li]
+  );
+}
+
+// ── Top controls ──────────────────────────────────────────────────────────────
+const controls   = document.getElementById('controls');
+const eqbar      = document.getElementById('eqbar');
+const visibleArr = LAYERS.map(() => true);
+const layerBtns  = [];
+
+[...LAYERS.keys()].reverse().forEach(i => {
+  const layer = LAYERS[i];
+  const btn = document.createElement('button');
+  btn.className = 'layer-btn';
+  btn.textContent = layer.name;
+  btn.style.color = layer.color;
+  btn.addEventListener('mouseenter', () => {
+    eqbar.innerHTML = `<b style="color:${layer.color}">${layer.name}:</b> <span>${layer.eq}</span>`;
+  });
+  btn.addEventListener('mouseleave', () => { eqbar.innerHTML = 'hover a layer button to see its equation'; });
+  btn.addEventListener('click', () => {
+    visibleArr[i] = !visibleArr[i];
+    btn.classList.toggle('off', !visibleArr[i]);
+    Plotly.restyle('plot', { visible: visibleArr[i] }, [i, N + i]);  // surface + grid
+  });
+  controls.appendChild(btn);
+  layerBtns[i] = btn;
+});
+
+const mkSep = () => {
+  const s = document.createElement('span');
+  s.style.cssText = 'color:#332;margin:0 4px;font-size:.8rem';
+  s.textContent = '|';
+  return s;
+};
+controls.appendChild(mkSep());
+
+const allBtn = document.createElement('button');
+allBtn.className = 'layer-btn'; allBtn.style.color = '#886'; allBtn.textContent = 'all / none';
+let allOn = true;
+allBtn.addEventListener('click', () => {
+  allOn = !allOn;
+  visibleArr.fill(allOn);
+  layerBtns.forEach(b => b.classList.toggle('off', !allOn));
+  Plotly.restyle('plot', { visible: allOn }, LAYERS.flatMap((_, i) => [i, N + i]));
+});
+controls.appendChild(allBtn);
+controls.appendChild(mkSep());
+
+const explodeGroup = document.createElement('div');
+explodeGroup.className = 'explode-group';
+explodeGroup.innerHTML =
+  '<span class="ctrl-label">Explode:</span>' +
+  '<input type="range" class="explode-slider" id="explodeSlider" min="0" max="3" step="0.02" value="0">' +
+  '<span class="explode-val" id="explodeVal">0.00</span>';
+controls.appendChild(explodeGroup);
+
+document.getElementById('explodeSlider').addEventListener('input', function () {
+  const e = parseFloat(this.value);
+  document.getElementById('explodeVal').textContent = e.toFixed(2);
+  applyExplode(e);
+});
+
+// ── Accordion ─────────────────────────────────────────────────────────────────
+function stdRange(orig) {
+  const d = orig === 0 ? 0.5 : Math.abs(orig) * 0.5;
+  return { min: orig - d, max: orig + d };
+}
+
+function sliderSpec(pi, orig) {
+  const opts = pi.sliderOpts;
+  if (opts && opts.isPow2) {
+    const exp = Math.round(Math.log2(orig));
+    return {
+      slMin: opts.min, slMax: opts.max, slStep: 1, slInit: exp,
+      paramFromSl: s => Math.pow(2, Math.round(+s)),
+      fmtVal: v => `2^${Math.round(Math.log2(v))} = ${v}`,
+      fmtMin: String(Math.pow(2, opts.min)),
+      fmtMid: `2^${exp}=${orig}`,
+      fmtMax: String(Math.pow(2, opts.max)),
+    };
+  }
+  if (opts) {
+    return {
+      slMin: opts.min, slMax: opts.max, slStep: opts.step || 1, slInit: orig,
+      paramFromSl: s => Math.round(+s),
+      fmtVal: v => String(Math.round(v)),
+      fmtMin: String(opts.min), fmtMid: String(Math.round(orig)), fmtMax: String(opts.max),
+    };
+  }
+  const r = stdRange(orig);
+  return {
+    slMin: r.min, slMax: r.max, slStep: (r.max - r.min) / 200, slInit: orig,
+    paramFromSl: s => +s,
+    fmtVal: v => v.toFixed(4),
+    fmtMin: r.min.toFixed(3), fmtMid: orig.toFixed(4), fmtMax: r.max.toFixed(3),
+  };
+}
+
+const accordion = document.getElementById('accordion');
+
+[...LAYERS.keys()].reverse().forEach(li => {
+  const layer = LAYERS[li];
+  const item = document.createElement('div');
+  item.className = 'acc-item';
+
+  const hdr = document.createElement('div');
+  hdr.className = 'acc-header';
+
+  const hdrLeft = document.createElement('div');
+  hdrLeft.className = 'acc-header-left';
+
+  const colorPicker = document.createElement('input');
+  colorPicker.type = 'color';
+  colorPicker.className = 'acc-color';
+  colorPicker.value = layer.color;
+  colorPicker.addEventListener('click', e => e.stopPropagation());
+  colorPicker.addEventListener('input', e => {
+    e.stopPropagation();
+    const c = colorPicker.value;
+    layer.color = c;
+    nameSpan.style.color = c;
+    layerBtns[li].style.color = c;
+    Plotly.restyle('plot', { colorscale: [[[0, c], [1, c]]] }, [li]);
+  });
+
+  const nameSpan = document.createElement('span');
+  nameSpan.className = 'acc-name';
+  nameSpan.style.color = layer.color;
+  nameSpan.textContent = layer.name;
+
+  hdrLeft.appendChild(colorPicker);
+  hdrLeft.appendChild(nameSpan);
+
+  const chevron = document.createElement('span');
+  chevron.className = 'acc-chevron';
+  chevron.textContent = '▶';
+
+  hdr.appendChild(hdrLeft);
+  hdr.appendChild(chevron);
+
+  const body = document.createElement('div');
+  body.className = 'acc-body';
+
+  hdr.addEventListener('click', () => {
+    const open = body.classList.toggle('open');
+    hdr.querySelector('.acc-chevron').classList.toggle('open', open);
+  });
+
+  layer.paramInfo.forEach(pi => {
+    const orig = layer.origParams[pi.key];
+    const sp   = sliderSpec(pi, orig);
+    const valId = `pv-${li}-${pi.key}`;
+
+    const row = document.createElement('div');
+    row.className = 'param-row';
+    row.innerHTML =
+      `<div class="param-top">` +
+        `<span class="param-key">${pi.label} <span class="param-desc">${pi.desc}</span></span>` +
+        `<span class="param-val" id="${valId}">${sp.fmtVal(orig)}</span>` +
+      `</div>` +
+      `<input type="range" class="param-slider" min="${sp.slMin}" max="${sp.slMax}" ` +
+             `step="${sp.slStep}" value="${sp.slInit}" style="accent-color:${layer.color}">` +
+      `<div class="param-minmax">` +
+        `<span>${sp.fmtMin}</span><span class="orig">${sp.fmtMid}</span><span>${sp.fmtMax}</span>` +
+      `</div>`;
+
+    const sl = row.querySelector('input');
+    let timer;
+    sl.addEventListener('input', () => {
+      const v = sp.paramFromSl(sl.value);
+      layer.params[pi.key] = v;
+      document.getElementById(valId).textContent = sp.fmtVal(v);
+      clearTimeout(timer);
+      timer = setTimeout(() => rebuildLayer(li), 40);
+    });
+
+    body.appendChild(row);
+  });
+
+  const rst = document.createElement('button');
+  rst.className = 'acc-reset';
+  rst.textContent = 'reset defaults';
+  rst.addEventListener('click', () => {
+    const sliders = body.querySelectorAll('input[type=range]');
+    layer.paramInfo.forEach((pi, idx) => {
+      const orig = layer.origParams[pi.key];
+      const sp = sliderSpec(pi, orig);
+      layer.params[pi.key] = orig;
+      sliders[idx].value = sp.slInit;
+      document.getElementById(`pv-${li}-${pi.key}`).textContent = sp.fmtVal(orig);
+    });
+    rebuildLayer(li);
+  });
+  body.appendChild(rst);
+
+  item.appendChild(hdr);
+  item.appendChild(body);
+  accordion.appendChild(item);
+});
+
+// ── Initial plot ──────────────────────────────────────────────────────────────
+const surfTraces = LAYERS.map((layer, i) => ({
+  type: 'surface',
+  x: surfaces[i].X, y: surfaces[i].Y, z: surfaces[i].Z,
+  colorscale: [[0, layer.color], [1, layer.color]],
+  showscale: false, name: layer.name,
+  hovertemplate: `<b>${layer.name}</b><br>x=%{x:.3f}  y=%{y:.3f}  z=%{z:.3f}<extra></extra>`,
+  lighting: { ambient: 0.55, diffuse: 0.85, specular: 0.45, roughness: 0.45, fresnel: 0.25 },
+  lightposition: { x: 800, y: 400, z: 2000 },
+  contours: { x: { show: false }, y: { show: false }, z: { show: false } }
+}));
+
+const gridTraces = LAYERS.map((layer, i) => ({
+  type: 'scatter3d',
+  mode: 'lines',
+  x: grids[i].gx,
+  y: grids[i].gy,
+  z: grids[i].gz,
+  line: { color: gridColor(), width: 6 },
+  showlegend: false,
+  hoverinfo: 'none',
+  name: layer.name + '_grid'
+}));
+
+Plotly.newPlot('plot', [...surfTraces, ...gridTraces], {
+  paper_bgcolor: 'rgba(0,0,0,0)',
+  margin: { l: 0, r: 0, t: 0, b: 0 },
+  scene: {
+    bgcolor: 'rgba(0,0,0,0)',
+    aspectmode: 'data',
+    xaxis: { title: 'x', gridcolor: '#8ab', zerolinecolor: '#acd', tickfont: { color: '#789' }, titlefont: { color: '#789' } },
+    yaxis: { title: 'y', gridcolor: '#8ab', zerolinecolor: '#acd', tickfont: { color: '#789' }, titlefont: { color: '#789' } },
+    zaxis: { title: 'z', gridcolor: '#8ab', zerolinecolor: '#acd', tickfont: { color: '#789' }, titlefont: { color: '#789' } },
+    camera: { eye: { x: 1.4, y: 1.2, z: 0.7 } }
+  }
+}, { responsive: true, displaylogo: false, modeBarButtonsToRemove: ['resetCameraLastSave3d'] });
+</script>
+</body>
+</html>
