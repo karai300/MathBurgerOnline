@@ -91,6 +91,63 @@
       cursor: pointer; font-family: monospace; transition: color 0.1s, border-color 0.1s;
     }
     .acc-reset:hover { color: #555; border-color: #aaa; }
+
+    /* ── Mobile toggle button (hidden on desktop) ── */
+    #params-toggle {
+      display: none;
+      padding: 5px 14px; font-size: 0.75rem; font-family: monospace;
+      border: 1px solid #d08020; border-radius: 999px; color: #d08020;
+      background: transparent; cursor: pointer; white-space: nowrap; flex-shrink: 0;
+    }
+
+    /* ── Tablet / large phone ── */
+    @media (max-width: 700px) {
+      body { overflow: auto; height: auto; min-height: 100vh; }
+
+      #main { flex-direction: column; overflow: visible; }
+
+      #plot {
+        flex: none;
+        height: 55vw;
+        min-height: 260px;
+        max-height: 55vh;
+      }
+
+      #accordion {
+        width: 100%;
+        border-left: none;
+        border-top: 1px solid #e0e0e0;
+        max-height: none;
+        overflow-y: visible;
+        /* collapsed by default; JS toggles this class */
+        display: none;
+      }
+      #accordion.open { display: block; }
+
+      #params-toggle { display: inline-block; }
+
+      #left { overflow: visible; }
+
+      .explode-group { margin-left: 0; }
+      input[type=range].explode-slider { width: 90px; }
+    }
+
+    /* ── Small phone ── */
+    @media (max-width: 480px) {
+      header { padding: 8px 12px; gap: 6px; }
+      .formula { display: none; }
+
+      #controls { padding: 6px 10px; gap: 5px; }
+      .layer-btn { font-size: 0.68rem; padding: 5px 10px; }
+      .ctrl-label { display: none; }
+
+      #eqbar { display: none; }
+
+      .acc-header { padding: 12px 10px; }
+      .acc-body { padding: 10px; }
+      .param-row { margin-bottom: 14px; }
+      input[type=range].param-slider { height: 5px; }
+    }
   </style>
 </head>
 <body>
@@ -107,7 +164,7 @@
 
 <div id="main">
   <div id="left">
-    <div id="controls"><span class="ctrl-label">Layers:</span></div>
+    <div id="controls"><span class="ctrl-label">Layers:</span><button id="params-toggle">⚙ Parameters</button></div>
     <div id="eqbar">hover a layer button to see its equation</div>
     <div id="plot"></div>
   </div>
@@ -423,6 +480,16 @@ document.getElementById('explodeSlider').addEventListener('input', function () {
   const e = parseFloat(this.value);
   document.getElementById('explodeVal').textContent = e.toFixed(2);
   applyExplode(e);
+});
+
+// Mobile params panel toggle
+const paramsToggle = document.getElementById('params-toggle');
+const accordionEl  = document.getElementById('accordion');
+paramsToggle.addEventListener('click', () => {
+  const open = accordionEl.classList.toggle('open');
+  paramsToggle.textContent = open ? '⚙ Parameters ▲' : '⚙ Parameters ▼';
+  // let Plotly re-measure after layout shift
+  setTimeout(() => Plotly.Plots.resize('plot'), 50);
 });
 
 // ── Accordion ─────────────────────────────────────────────────────────────────
