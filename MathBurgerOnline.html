@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="color-scheme" content="dark">
   <title>Math Burger Online</title>
-  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body { background-color: #ffffff; }
@@ -137,33 +136,46 @@
       header { padding: 8px 12px; gap: 6px; }
       .formula { display: none; }
 
-      /* Dissolve #left so its children participate directly in #main's flex layout */
-      #left { display: contents; }
+      /* Wrap main as row so accordion sits left (50%) and left-block fills next row */
+      #main {
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-content: flex-start;
+        overflow: visible;
+      }
 
-      /* Controls: full width, first */
-      #controls { order: 1; padding: 6px 10px; gap: 5px; }
-      .layer-btn { font-size: 0.68rem; padding: 5px 10px; }
-      .ctrl-label { display: none; }
-
-      #eqbar { display: none; }
-
-      /* Accordion: always visible, half screen width, scrollable, second */
+      /* Accordion: always visible, left half, scrollable — order 1 (first) */
       #accordion {
         display: block !important;
-        order: 2;
+        order: 1;
         width: 50%;
-        max-height: 50vh;
+        max-height: 60vh;
         overflow-y: auto;
-        border-top: 1px solid #e0e0e0;
+        border-right: 1px solid #e0e0e0;
+        border-top: none;
         border-left: none;
       }
 
-      /* Plot: square (100vw × 100vw in portrait), at bottom */
+      /* Left block: controls + plot, full width, below accordion — order 2 */
+      #left {
+        order: 2;
+        width: 100%;
+        flex: none;
+        display: flex;
+        flex-direction: column;
+        overflow: visible;
+      }
+
+      #controls { padding: 6px 10px; gap: 5px; }
+      .layer-btn { font-size: 0.68rem; padding: 5px 10px; }
+      .ctrl-label { display: none; }
+      #eqbar { display: none; }
+
+      /* Plot: square (100vw × 100vw) at the bottom */
       #plot {
-        order: 3;
+        flex: none;
         width: 100vw;
         height: 100vw;
-        flex: none;
         min-height: 0;
         max-height: none;
       }
@@ -171,6 +183,8 @@
       /* Toggle button not needed — accordion is always shown */
       #params-toggle { display: none !important; }
 
+      .explode-group { margin-left: 0; }
+      input[type=range].explode-slider { width: 90px; }
       .acc-header { padding: 12px 10px; }
       .acc-body { padding: 10px; }
       .param-row { margin-bottom: 14px; }
@@ -199,6 +213,7 @@
   <div id="accordion"></div>
 </div>
 
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 <script>
 // ── erf ──────────────────────────────────────────────────────────────────────
 function erf(x) {
@@ -227,8 +242,8 @@ const LAYERS = [
       { key: 'v',  label: 'v',  desc: 'vertical center' },
       { key: 'r0', label: 'r₀', desc: 'radius' },
     ],
-    rFn: (t, p, q) => q.r0 * Math.sin(t),
-    zFn: (t, p, q) => q.v + q.w * erf(q.a * (Math.cos(t) - q.b))
+    rFn: (ct, st, phi, q) => q.r0 * st,
+    zFn: (ct, st, phi, q) => q.v + q.w * erf(q.a * (ct - q.b))
   },
   {
     name: 'Lettuce', color: '#44aa30',
@@ -245,9 +260,12 @@ const LAYERS = [
       { key: 'm', label: 'm', desc: 'edge lobes',  sliderOpts: { min: 3, max: 8, step: 1 } },
       { key: 'l', label: 'l', desc: 'frilly freq', sliderOpts: { min: 2, max: 6, step: 1, isPow2: true } },
     ],
-    rFn: (t, p, q) => (q.r0 + q.wobble * Math.sin(q.m * p)) * Math.sin(t),
-    zFn: (t, p, q) => (q.v + q.ripple * Math.cos(q.l * p) * Math.pow(Math.sin(t), 16))
-                     + q.w * erf(q.a * (Math.cos(t) - q.b))
+    updatePhi: (phi, q) => {
+      q._sinMP = Math.sin(q.m * phi);
+      q._cosLP = Math.cos(q.l * phi);
+    },
+    rFn: (ct, st, phi, q)         => (q.r0 + q.wobble * q._sinMP) * st,
+    zFn: (ct, st, phi, q, s16t)   => (q.v + q.ripple * q._cosLP * s16t) + q.w * erf(q.a * (ct - q.b))
   },
   {
     name: 'Patty', color: '#5c2c10',
@@ -261,8 +279,8 @@ const LAYERS = [
       { key: 'v',  label: 'v',  desc: 'vertical center' },
       { key: 'r0', label: 'r₀', desc: 'radius' },
     ],
-    rFn: (t, p, q) => q.r0 * Math.sin(t),
-    zFn: (t, p, q) => q.v + q.w * erf(q.a * (Math.cos(t) - q.b))
+    rFn: (ct, st, phi, q) => q.r0 * st,
+    zFn: (ct, st, phi, q) => q.v + q.w * erf(q.a * (ct - q.b))
   },
   {
     name: 'Cheese', color: '#f0c020',
@@ -278,9 +296,14 @@ const LAYERS = [
       { key: 'sinMod', label: 'sinMod', desc: 'squareness' },
       { key: 'n', label: 'n', desc: 'corner count', sliderOpts: { min: 3, max: 8, step: 1 } },
     ],
-    rFn: (t, p, q) => Math.pow(q.r0 + q.sinMod * Math.sin(q.n*p) - q.cosMod * Math.cos(2*q.n*p), 2) * Math.sin(t),
-    zFn: (t, p, q) => (q.v - q.droop * Math.pow(1 + Math.sin(q.n*p), 6) * Math.pow(Math.sin(t), 16))
-                     + q.w * erf(q.a * (Math.cos(t) - q.b))
+    updatePhi: (phi, q) => {
+      const sn = Math.sin(q.n * phi);
+      const r  = q.r0 + q.sinMod * sn - q.cosMod * Math.cos(2 * q.n * phi);
+      q._rMod2 = r * r;
+      let f = 1 + sn; f = f * f * f; q._droop6 = q.droop * f * f;
+    },
+    rFn: (ct, st, phi, q)         => q._rMod2 * st,
+    zFn: (ct, st, phi, q, s16t)   => (q.v - q._droop6 * s16t) + q.w * erf(q.a * (ct - q.b))
   },
   {
     name: 'Tomato', color: '#cc2e2e',
@@ -294,8 +317,8 @@ const LAYERS = [
       { key: 'v',  label: 'v',  desc: 'vertical center' },
       { key: 'r0', label: 'r₀', desc: 'radius' },
     ],
-    rFn: (t, p, q) => q.r0 * Math.sin(t),
-    zFn: (t, p, q) => q.v + q.w * erf(q.a * (Math.cos(t) - q.b))
+    rFn: (ct, st, phi, q) => q.r0 * st,
+    zFn: (ct, st, phi, q) => q.v + q.w * erf(q.a * (ct - q.b))
   },
   {
     name: 'Onion', color: '#e0dac8',
@@ -309,8 +332,8 @@ const LAYERS = [
       { key: 'v',  label: 'v',  desc: 'vertical center' },
       { key: 'r0', label: 'r₀', desc: 'radius' },
     ],
-    rFn: (t, p, q) => q.r0 * Math.sin(t),
-    zFn: (t, p, q) => q.v + q.w * erf(q.a * (Math.cos(t) - q.b))
+    rFn: (ct, st, phi, q) => q.r0 * st,
+    zFn: (ct, st, phi, q) => q.v + q.w * erf(q.a * (ct - q.b))
   },
   {
     name: 'Top Bun', color: '#d8902a',
@@ -324,8 +347,8 @@ const LAYERS = [
       { key: 'v',  label: 'v',  desc: 'vertical center' },
       { key: 'r0', label: 'r₀', desc: 'radius' },
     ],
-    rFn: (t, p, q) => q.r0 * Math.sin(t),
-    zFn: (t, p, q) => q.v + q.w * erf(q.a * (Math.cos(t) - q.b))
+    rFn: (ct, st, phi, q) => q.r0 * st,
+    zFn: (ct, st, phi, q) => q.v + q.w * erf(q.a * (ct - q.b))
   }
 ];
 
@@ -336,17 +359,28 @@ const N = LAYERS.length;   // 7 — surface traces are [0..N-1], grid traces are
 // ── Surface builder ───────────────────────────────────────────────────────────
 function buildSurface(layer) {
   const { Nt, Np, rFn, zFn, params } = layer;
-  const thetas = Array.from({ length: Nt }, (_, k) => Math.PI * k / (Nt - 1));
-  const phis   = Array.from({ length: Np }, (_, k) => 2 * Math.PI * k / (Np - 1));
+  const dTheta = Math.PI / (Nt - 1);
+  const dPhi   = 2 * Math.PI / (Np - 1);
+
+  // Pre-compute theta arrays (hoisted outside both loops)
+  const cosT = new Array(Nt), sinT = new Array(Nt), sin16T = new Array(Nt);
+  for (let j = 0; j < Nt; j++) {
+    const th = j * dTheta;
+    cosT[j] = Math.cos(th); sinT[j] = Math.sin(th);
+    let s = sinT[j]; s = s*s; s = s*s; s = s*s; sin16T[j] = s*s; // sin^16 via 4 squarings
+  }
+
   const X = [], Y = [], Z = [];
   for (let i = 0; i < Np; i++) {
-    const phi = phis[i];
+    const phi    = i * dPhi;
+    const cosPhi = Math.cos(phi);   // hoisted: used Nt times below
+    const sinPhi = Math.sin(phi);
+    if (layer.updatePhi) layer.updatePhi(phi, params); // cache phi-only terms
     const xr = [], yr = [], zr = [];
     for (let j = 0; j < Nt; j++) {
-      const th = thetas[j];
-      const r  = rFn(th, phi, params);
-      const z  = zFn(th, phi, params);
-      xr.push(r * Math.cos(phi)); yr.push(r * Math.sin(phi)); zr.push(z);
+      const r = rFn(cosT[j], sinT[j], phi, params, sin16T[j]);
+      const z = zFn(cosT[j], sinT[j], phi, params, sin16T[j]);
+      xr.push(r * cosPhi); yr.push(r * sinPhi); zr.push(z);
     }
     X.push(xr); Y.push(yr); Z.push(zr);
   }
@@ -356,27 +390,45 @@ function buildSurface(layer) {
 // ── Grid-line builder: 16 meridians (const φ) + 8 latitude rings (const θ) ──
 function buildGrid(layer, dz) {
   const { Nt, Np, rFn, zFn, params } = layer;
-  const thetas = Array.from({ length: Nt }, (_, k) => Math.PI * k / (Nt - 1));
-  const phis   = Array.from({ length: Np }, (_, k) => 2 * Math.PI * k / (Np - 1));
+  const dTheta = Math.PI / (Nt - 1);
+  const dPhi   = 2 * Math.PI / (Np - 1);
   const NM = 16, NL = 8;
+
+  // Pre-compute theta arrays for meridians
+  const cosT = new Array(Nt), sinT = new Array(Nt), sin16T = new Array(Nt);
+  for (let j = 0; j < Nt; j++) {
+    const th = j * dTheta;
+    cosT[j] = Math.cos(th); sinT[j] = Math.sin(th);
+    let s = sinT[j]; s = s*s; s = s*s; s = s*s; sin16T[j] = s*s;
+  }
+
   const gx = [], gy = [], gz = [];
 
-  // Meridians
+  // Meridians (const phi): phi fixed, theta varies — hoist cosPhi/sinPhi
   for (let m = 0; m < NM; m++) {
-    const phi = 2 * Math.PI * m / NM;
-    for (const th of thetas) {
-      const r = rFn(th, phi, params), z = zFn(th, phi, params);
-      gx.push(r * Math.cos(phi)); gy.push(r * Math.sin(phi)); gz.push(z + dz);
+    const phi    = 2 * Math.PI * m / NM;
+    const cosPhi = Math.cos(phi), sinPhi = Math.sin(phi);
+    if (layer.updatePhi) layer.updatePhi(phi, params);
+    for (let j = 0; j < Nt; j++) {
+      const r = rFn(cosT[j], sinT[j], phi, params, sin16T[j]);
+      const z = zFn(cosT[j], sinT[j], phi, params, sin16T[j]);
+      gx.push(r * cosPhi); gy.push(r * sinPhi); gz.push(z + dz);
     }
     gx.push(null); gy.push(null); gz.push(null);
   }
 
-  // Latitude rings
+  // Latitude rings (const theta): theta fixed, phi varies — pre-compute fixed-theta values
   for (let l = 1; l <= NL; l++) {
-    const th = Math.PI * l / (NL + 1);
-    for (const phi of phis) {
-      const r = rFn(th, phi, params), z = zFn(th, phi, params);
-      gx.push(r * Math.cos(phi)); gy.push(r * Math.sin(phi)); gz.push(z + dz);
+    const th    = Math.PI * l / (NL + 1);
+    const cosTh = Math.cos(th), sinTh = Math.sin(th);
+    let s16 = sinTh; s16 = s16*s16; s16 = s16*s16; s16 = s16*s16; s16 = s16*s16;
+    for (let i = 0; i < Np; i++) {
+      const phi    = i * dPhi;
+      const cosPhi = Math.cos(phi), sinPhi = Math.sin(phi);
+      if (layer.updatePhi) layer.updatePhi(phi, params);
+      const r = rFn(cosTh, sinTh, phi, params, s16);
+      const z = zFn(cosTh, sinTh, phi, params, s16);
+      gx.push(r * cosPhi); gy.push(r * sinPhi); gz.push(z + dz);
     }
     gx.push(null); gy.push(null); gz.push(null);
   }
@@ -401,21 +453,21 @@ let curExplode = 0;
 
 const grids = LAYERS.map(l => buildGrid(l, 0));
 
-// ── Explode: update z for all surfaces + rebuild all grids ────────────────────
+// ── Explode: shift surface z + shift grid gz only (gx/gy unchanged) ──────────
 function applyExplode(e) {
   curExplode = e;
   const dzArr = LAYERS.map((_, i) => e * (zCenters[i] - zGlobal));
 
   Plotly.restyle('plot',
     { z: dzArr.map((dz, i) => baseZ[i].map(row => row.map(v => v + dz))) },
-    LAYERS.map((_, i) => i)
-  );
+    LAYERS.map((_, i) => i));
 
-  const newGrids = LAYERS.map((layer, i) => buildGrid(layer, dzArr[i]));
+  // Reuse cached gx/gy — only shift gz by constant dz (no full grid rebuild)
   Plotly.restyle('plot', {
-    x: newGrids.map(g => g.gx),
-    y: newGrids.map(g => g.gy),
-    z: newGrids.map(g => g.gz)
+    z: LAYERS.map((_, i) => {
+      const dz = dzArr[i];
+      return grids[i].gz.map(z => z === null ? null : z + dz);
+    })
   }, LAYERS.map((_, i) => N + i));
 }
 
@@ -442,11 +494,12 @@ function rebuildLayer(li) {
       otherIdx
     );
 
-  // Grid traces: always rebuild x+y+z for the changed layer
-  const newGrid = buildGrid(LAYERS[li], dzArr[li]);
+  // Grid: store base at dz=0, apply shift inline (keeps gx/gy valid for future explode)
+  const newGrid = buildGrid(LAYERS[li], 0);
   grids[li] = newGrid;
   Plotly.restyle('plot',
-    { x: [newGrid.gx], y: [newGrid.gy], z: [newGrid.gz] },
+    { x: [newGrid.gx], y: [newGrid.gy],
+      z: [newGrid.gz.map(z => z === null ? null : z + dzArr[li])] },
     [N + li]
   );
 }
