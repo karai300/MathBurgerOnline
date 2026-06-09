@@ -248,7 +248,7 @@ const LAYERS = [
   {
     name: 'Lettuce', color: '#44aa30',
     eq: 'r = (r₀ + wobble·sin(mφ))sinθ,  z = v + ripple·cos(lφ)·sin¹⁶θ + w·erf(a cosθ)',
-    Nt: 18, Np: 256,
+    Nt: 9, Np: 256,
     params: { a: 3, b: 0, w: 0.01, v: 0.14, r0: 1, ripple: 0.05, wobble: 0.1, m: 6, l: 32 },
     paramInfo: [
       { key: 'a',      label: 'a',      desc: 'erf sharpness' },
@@ -285,7 +285,7 @@ const LAYERS = [
   {
     name: 'Cheese', color: '#f0c020',
     eq: 'r = (r₀ + sinMod·sin(nφ) − cosMod·cos(2nφ))²·sinθ,  droop at sin(nφ) corners',
-    Nt: 18, Np: 64,
+    Nt: 9, Np: 64,
     params: { a: 3, b: 0, w: 0.05, v: 0.46, r0: 0.98, droop: 0.004, sinMod: 0.05, cosMod: 0.01, n: 4 },
     paramInfo: [
       { key: 'a',      label: 'a',      desc: 'erf sharpness' },
