@@ -132,16 +132,44 @@
       input[type=range].explode-slider { width: 90px; }
     }
 
-    /* ── Small phone ── */
+    /* ── Small phone portrait ── */
     @media (max-width: 480px) {
       header { padding: 8px 12px; gap: 6px; }
       .formula { display: none; }
 
-      #controls { padding: 6px 10px; gap: 5px; }
+      /* Dissolve #left so its children participate directly in #main's flex layout */
+      #left { display: contents; }
+
+      /* Controls: full width, first */
+      #controls { order: 1; padding: 6px 10px; gap: 5px; }
       .layer-btn { font-size: 0.68rem; padding: 5px 10px; }
       .ctrl-label { display: none; }
 
       #eqbar { display: none; }
+
+      /* Accordion: always visible, half screen width, scrollable, second */
+      #accordion {
+        display: block !important;
+        order: 2;
+        width: 50%;
+        max-height: 50vh;
+        overflow-y: auto;
+        border-top: 1px solid #e0e0e0;
+        border-left: none;
+      }
+
+      /* Plot: square (100vw × 100vw in portrait), at bottom */
+      #plot {
+        order: 3;
+        width: 100vw;
+        height: 100vw;
+        flex: none;
+        min-height: 0;
+        max-height: none;
+      }
+
+      /* Toggle button not needed — accordion is always shown */
+      #params-toggle { display: none !important; }
 
       .acc-header { padding: 12px 10px; }
       .acc-body { padding: 10px; }
