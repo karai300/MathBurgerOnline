@@ -223,14 +223,6 @@ function erf(x) {
   return s * (1 - p * Math.exp(-ax * ax));
 }
 
-// ── Resolution: phone (≤700px) uses low mesh, desktop uses 2× ────────────────
-const isMobile = window.innerWidth <= 700;
-const RES = {
-  std:     isMobile ? { Nt: 18, Np:  18 } : { Nt: 36, Np:  36 },
-  lettuce: isMobile ? { Nt:  9, Np: 256 } : { Nt: 18, Np: 512 },
-  cheese:  isMobile ? { Nt:  9, Np:  64 } : { Nt: 18, Np: 128 },
-};
-
 // ── Layer definitions ─────────────────────────────────────────────────────────
 // sliderOpts shapes:
 //   { min, max, step }               → integer slider (n, m)
@@ -241,7 +233,7 @@ const LAYERS = [
   {
     name: 'Bottom Bun', color: '#c07828',
     eq: 'B(a=4, b=−0.25, w=0.15, v=−0.03, r₀=0.95)',
-    ...RES.std,
+    Nt: 36, Np: 36,
     params: { a: 4, b: -0.25, w: 0.15, v: -0.03, r0: 0.95 },
     paramInfo: [
       { key: 'a',  label: 'a',  desc: 'erf sharpness' },
@@ -256,7 +248,7 @@ const LAYERS = [
   {
     name: 'Lettuce', color: '#44aa30',
     eq: 'r = (r₀ + wobble·sin(mφ))sinθ,  z = v + ripple·cos(lφ)·sin¹⁶θ + w·erf(a cosθ)',
-    ...RES.lettuce,
+    Nt: 18, Np: 512,
     params: { a: 3, b: 0, w: 0.01, v: 0.14, r0: 1, ripple: 0.05, wobble: 0.1, m: 6, l: 32 },
     paramInfo: [
       { key: 'a',      label: 'a',      desc: 'erf sharpness' },
@@ -278,7 +270,7 @@ const LAYERS = [
   {
     name: 'Patty', color: '#5c2c10',
     eq: 'B(a=2.5, b=0, w=0.15, v=0.3, r₀=1)',
-    ...RES.std,
+    Nt: 36, Np: 36,
     params: { a: 2.5, b: 0, w: 0.15, v: 0.3, r0: 1 },
     paramInfo: [
       { key: 'a',  label: 'a',  desc: 'erf sharpness' },
@@ -293,7 +285,7 @@ const LAYERS = [
   {
     name: 'Cheese', color: '#f0c020',
     eq: 'r = (r₀ + sinMod·sin(nφ) − cosMod·cos(2nφ))²·sinθ,  droop at sin(nφ) corners',
-    ...RES.cheese,
+    Nt: 18, Np: 128,
     params: { a: 3, b: 0, w: 0.05, v: 0.46, r0: 0.98, droop: 0.004, sinMod: 0.05, cosMod: 0.01, n: 4 },
     paramInfo: [
       { key: 'a',      label: 'a',      desc: 'erf sharpness' },
@@ -316,7 +308,7 @@ const LAYERS = [
   {
     name: 'Tomato', color: '#cc2e2e',
     eq: 'B(a=20, b=0, w=0.1, v=0.55, r₀=0.9)',
-    ...RES.std,
+    Nt: 36, Np: 36,
     params: { a: 20, b: 0, w: 0.1, v: 0.55, r0: 0.9 },
     paramInfo: [
       { key: 'a',  label: 'a',  desc: 'erf sharpness' },
@@ -331,7 +323,7 @@ const LAYERS = [
   {
     name: 'Onion', color: '#e0dac8',
     eq: 'B(a=20, b=0, w=0.05, v=0.7, r₀=0.85)',
-    ...RES.std,
+    Nt: 36, Np: 36,
     params: { a: 20, b: 0, w: 0.05, v: 0.7, r0: 0.85 },
     paramInfo: [
       { key: 'a',  label: 'a',  desc: 'erf sharpness' },
@@ -346,7 +338,7 @@ const LAYERS = [
   {
     name: 'Top Bun', color: '#d8902a',
     eq: 'B(a=1.2, b=0.5, w=0.5, v=1.2, r₀=1)',
-    ...RES.std,
+    Nt: 36, Np: 36,
     params: { a: 1.2, b: 0.5, w: 0.5, v: 1.2, r0: 1 },
     paramInfo: [
       { key: 'a',  label: 'a',  desc: 'erf sharpness' },
